@@ -299,8 +299,8 @@ JOIN y_12 ON y_11.country = y_12.country
 JOIN y_13 ON y_12.country = y_13.country
 ORDER BY y_2011 DESC;
 
-/* Подзапросы во FROM
-/* Найдите средние значения полей, в которых указаны минимальная и максимальная длительность отобранных фильмов. Отобразите только эти два поля. Назовите их avg_min_length и avg_max_length соответственно.
+/* Подзапросы во FROM */
+/* Найдите средние значения полей, в которых указаны минимальная и максимальная длительность отобранных фильмов. Отобразите только эти два поля. Назовите их avg_min_length и avg_max_length соответственно.*/
 select avg(top2.min_length) as avg_min_length,
        avg(top2.max_length) as avg_max_length
 from
@@ -324,4 +324,69 @@ FROM (
     LIMIT 40
 ) AS top
 GROUP BY top.rating
-ORDER BY avg_length) as top2
+ORDER BY avg_length) as top2;
+
+/* Подзапросы в WHERE */
+select
+    billing_country,
+    ROUND(MIN(total),2) as min_total,
+    ROUND(MAX(total),2) as max_total,
+    ROUND(AVG(total),2) as avg_total
+from invoice
+where invoice_id IN (
+-- Подзапрос для заказов, где больше 5 треков.
+SELECT invoice_id
+FROM invoice_line
+GROUP BY invoice_id
+HAVING COUNT(invoice_id) > 5
+)
+AND
+total > (
+-- Подзапрос для вычисления средней цены одного трека.
+SELECT AVG(unit_price)
+FROM invoice_line
+)
+GROUP BY billing_country
+ORDER BY avg_total DESC,billing_country ASC;
+
+/* Общие табличные выражения */
+
+WITH total_2012 as (
+SELECT
+EXTRACT(MONTH FROM CAST(invoice_date AS date)) AS month
+,SUM (total) as sum_total_2012   
+FROM invoice
+WHERE EXTRACT (YEAR FROM CAST(invoice_date AS date)) = 2012  
+GROUP BY EXTRACT(MONTH FROM CAST(invoice_date AS date))    
+),
+total_2013 as  (
+SELECT
+EXTRACT(MONTH FROM CAST(invoice_date AS date)) AS month
+,SUM (total) as sum_total_2013   
+FROM invoice
+WHERE EXTRACT (YEAR FROM CAST(invoice_date AS date)) = 2013  
+GROUP BY EXTRACT(MONTH FROM CAST(invoice_date AS date))   
+    )
+ SELECT 
+ *,
+--, ROUND (sum_total_2013/sum_total_2012)  as perc
+ROUND ((sum_total_2013*100) / sum_total_2012) - 100 as perc
+ FROM total_2012
+ JOIN total_2013 USING (month)
+ORDER BY  month;
+
+/* Рекурсия в иерархических структурах */
+
+WITH RECURSIVE prod AS (
+SELECT id, parent_id, 1 AS level, product_name, product_name::TEXT AS full_path
+    from products
+    WHERE product_name ='Авто'
+    union all
+     select p.id, p.parent_id, level+1, p.product_name, concat (pr.full_path,'-',p.product_name) as full_path
+    from products p join prod pr on p.parent_id=pr.id
+)
+SELECT id, parent_id, level, product_name,full_path
+FROM prod
+ORDER BY full_path;
+
+
