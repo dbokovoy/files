@@ -1,0 +1,11 @@
+WITH RECURSIVE numbers AS (
+    -- Запрос для первого значения уже написан:
+    SELECT 0 AS fibonacci_number, 1 as temp_number
+    UNION ALL
+    SELECT temp_number,temp_number + fibonacci_number
+    FROM numbers
+    where temp_number < 2000
+    -- Допишите рекурсивный запрос здесь
+)
+SELECT fibonacci_number 
+FROM numbers;
